@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campusdelivery.dev/contracts/courier-location.v1.schema.json",
+  "title": "CourierLocation v1",
+  "description": "One raw courier ping. High volume, best effort. `recordedAt` is device time and may be out of order; `receivedAt` is server time.",
+  "type": "object",
+  "required": ["schemaVersion", "courierId", "lat", "lng", "recordedAt", "receivedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "courierId": { "type": "string", "format": "uuid" },
+    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "receivedAt": { "type": "string", "format": "date-time" },
+    "speedMps": { "type": ["number", "null"] },
+    "headingDeg": { "type": ["number", "null"] },
+    "accuracyM": { "type": ["number", "null"] },
+    "orderId": { "type": ["string", "null"], "format": "uuid", "description": "Active order at the time of the ping, if any" }
+  }
+}

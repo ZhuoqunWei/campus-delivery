@@ -1,0 +1,34 @@
+# Java / Maven
+backend/target/
+*.class
+*.log
+
+# Node
+node_modules/
+web/dist/
+simulator/dist/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Local env
+.env
+.env.local
+
+# Python / Spark
+analytics/.venv/
+analytics/data/
+__pycache__/
+*.pyc
+.pytest_cache/
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Generated compiler state and local overrides
+*.tsbuildinfo
+.env.*
+!.env.example

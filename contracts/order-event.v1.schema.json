@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campusdelivery.dev/contracts/order-event.v1.schema.json",
+  "title": "OrderEvent v1",
+  "description": "A state change of an order. `payload.order` is the full order read model after the change.",
+  "type": "object",
+  "required": ["schemaVersion", "eventId", "type", "occurredAt", "aggregateType", "aggregateId", "orderId", "customerId", "payload"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "eventId": { "type": "integer", "minimum": 1, "description": "Monotonic id; dedupe key" },
+    "type": {
+      "type": "string",
+      "enum": ["ORDER_CREATED", "ORDER_OFFERED", "OFFER_EXPIRED", "OFFER_DECLINED", "OFFER_WITHDRAWN",
+               "ORDER_ACCEPTED", "ORDER_PICKED_UP", "ORDER_DELIVERED", "ORDER_CANCELLED", "ORDER_UNASSIGNED"]
+    },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "aggregateType": { "const": "ORDER" },
+    "aggregateId": { "type": "string", "format": "uuid" },
+    "orderId": { "type": "string", "format": "uuid" },
+    "courierId": { "type": ["string", "null"], "format": "uuid", "description": "Courier the event concerns (offered, assigned, or previous)" },
+    "customerId": { "type": "string", "format": "uuid" },
+    "payload": {
+      "type": "object",
+      "required": ["order"],
+      "properties": {
+        "order": { "$ref": "#/$defs/order" },
+        "offerId": { "type": "string", "format": "uuid" },
+        "distanceMeters": { "type": "number" },
+        "reason": { "type": "string" },
+        "cancelledBy": { "type": "string", "enum": ["CUSTOMER", "DISPATCHER"] },
+        "assignedBy": { "type": "string", "enum": ["DISPATCHER"] },
+        "previousCourierId": { "type": "string", "format": "uuid" }
+      }
+    }
+  },
+  "$defs": {
+    "geoPoint": {
+      "type": "object",
+      "required": ["lat", "lng"],
+      "properties": { "lat": { "type": "number" }, "lng": { "type": "number" } }
+    },
+    "order": {
+      "type": "object",
+      "required": ["id", "status", "version", "customerId", "merchant", "dropoff", "createdAt", "updatedAt", "statusChangedAt"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "status": { "type": "string", "enum": ["CREATED", "OFFERED", "ACCEPTED", "PICKED_UP", "DELIVERED", "CANCELLED"] },
+        "version": { "type": "integer", "minimum": 0 },
+        "customerId": { "type": "string", "format": "uuid" },
+        "customerName": { "type": "string" },
+        "merchant": {
+          "type": "object",
+          "required": ["id", "name", "location"],
+          "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" }, "location": { "$ref": "#/$defs/geoPoint" } }
+        },
+        "dropoff": { "$ref": "#/$defs/geoPoint" },
+        "note": { "type": "string" },
+        "items": { "type": "array", "items": { "type": "object", "properties": { "name": { "type": "string" }, "quantity": { "type": "integer" } } } },
+        "courierId": { "type": "string", "format": "uuid" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "statusChangedAt": { "type": "string", "format": "date-time" },
+        "acceptedAt": { "type": "string", "format": "date-time" },
+        "pickedUpAt": { "type": "string", "format": "date-time" },
+        "deliveredAt": { "type": "string", "format": "date-time" },
+        "cancelledAt": { "type": "string", "format": "date-time" },
+        "cancelReason": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,122 @@
+# docker compose up --build
+#   web        http://localhost:3000   (customer / dispatcher / courier console)
+#   backend    http://localhost:8080   (REST + WebSocket + actuator)
+#   postgres   localhost:5432          (campus / campus / campus)
+#   kafka      localhost:29092         (EXTERNAL listener for host tools; brokers talk on kafka:9092)
+#   analytics  ./analytics/data/compose/output/<table>/date=YYYY-MM-DD/*.parquet
+services:
+  postgres:
+    # postgis/postgis only publishes amd64 images; Docker Desktop runs it under Rosetta/QEMU on
+    # Apple Silicon. For native arm64 set POSTGIS_IMAGE=imresamu/postgis:16-3.5.
+    image: ${POSTGIS_IMAGE:-postgis/postgis:16-3.5}
+    platform: ${POSTGIS_PLATFORM:-linux/amd64}
+    environment:
+      POSTGRES_DB: campus
+      POSTGRES_USER: campus
+      POSTGRES_PASSWORD: campus
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campus -d campus"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  kafka:
+    image: apache/kafka:4.1.2
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: campus-delivery-kraft-001
+    ports:
+      - "29092:29092"
+    volumes:
+      - kafkadata:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  backend:
+    build: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/campus
+      SPRING_DATASOURCE_USERNAME: campus
+      SPRING_DATASOURCE_PASSWORD: campus
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-campus-delivery-dev-secret-change-me-please-0123456789}
+      APP_CAMPUS_NAME: ${APP_CAMPUS_NAME:-Main Campus}
+      APP_CAMPUS_LAT: ${APP_CAMPUS_LAT:-37.8719}
+      APP_CAMPUS_LNG: ${APP_CAMPUS_LNG:--122.2585}
+      APP_SEED_PASSWORD: ${APP_SEED_PASSWORD:-password}
+      APP_OFFER_TTL: ${APP_OFFER_TTL:-20s}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/readiness"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 20s
+
+  web:
+    build: ./web
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  simulator:
+    build: ./simulator
+    environment:
+      API_URL: http://backend:8080
+      COURIERS: ${SIM_COURIERS:-10}
+      ORDERS_PER_MINUTE: ${SIM_ORDERS_PER_MINUTE:-2}
+      SPEED_MPS: ${SIM_SPEED_MPS:-9}
+      SEED_PASSWORD: ${APP_SEED_PASSWORD:-password}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  analytics:
+    build: ./analytics
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      OUTPUT_DIR: /data/output
+      CHECKPOINT_DIR: /data/checkpoints
+      STARTING_OFFSETS: ${ANALYTICS_STARTING_OFFSETS:-earliest}
+      TRIGGER_SECONDS: ${ANALYTICS_TRIGGER_SECONDS:-10}
+      SPARK_SHUFFLE_PARTITIONS: "4"
+    volumes:
+      - ./analytics/data/compose:/data
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  kafkadata:

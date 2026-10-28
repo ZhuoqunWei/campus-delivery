@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campusdelivery.dev/contracts/courier-event.v1.schema.json",
+  "title": "CourierEvent v1",
+  "type": "object",
+  "required": ["schemaVersion", "eventId", "type", "occurredAt", "aggregateType", "aggregateId", "courierId", "payload"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "eventId": { "type": "integer", "minimum": 1 },
+    "type": { "type": "string", "enum": ["COURIER_STATUS_CHANGED"] },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "aggregateType": { "const": "COURIER" },
+    "aggregateId": { "type": "string", "format": "uuid" },
+    "courierId": { "type": "string", "format": "uuid" },
+    "payload": {
+      "type": "object",
+      "required": ["courier"],
+      "properties": {
+        "courier": {
+          "type": "object",
+          "required": ["id", "name", "status", "stale"],
+          "properties": {
+            "id": { "type": "string", "format": "uuid" },
+            "name": { "type": "string" },
+            "status": { "type": "string", "enum": ["ONLINE", "OFFLINE"] },
+            "location": { "type": "object", "properties": { "lat": { "type": "number" }, "lng": { "type": "number" } } },
+            "locationAt": { "type": "string", "format": "date-time" },
+            "lastSeenAt": { "type": "string", "format": "date-time" },
+            "stale": { "type": "boolean" },
+            "activeOrderId": { "type": "string", "format": "uuid" }
+          }
+        }
+      }
+    }
+  }
+}

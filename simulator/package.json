@@ -1,0 +1,16 @@
+{
+  "name": "campus-delivery-simulator",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Simulated couriers and customers driving the Campus Delivery API",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "@types/node": "^24.0.0"
+  }
+}
